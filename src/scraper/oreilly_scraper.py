@@ -2,6 +2,7 @@ import os
 import time
 import json
 import pandas as pd
+import requests
 
 from utils.http_message import HTTPMessage
 from core.base_scraper import BaseScraper
@@ -95,8 +96,63 @@ class OreillyScraper(BaseScraper):
         book_df.to_csv(file_path, index=False)
         self.logger.info(f"Save book data to: {file_path}")
 
-    def save_review_data(self):
+    def get_review_endpoints(self):
+        """
+        TODO
+        - 로그인 필요 (세션 인증 방식)
+        - Selenium driver로 페이지의 모든 review 버튼을 클릭
+        - 네트워크 탭에 요청하는 request endpoint를 intercept
+        - endpoint를 리스트에 저장하고 리턴
+        """
         pass
 
-    def parse_review_data(self):
-        pass
+    def scrape_review_data(self):
+        """
+        TODO
+        - 하나의 endpoint에 응답 메시지의 review 데이터를 저장
+        - 하나의 endpoint마다 next 페이지의 url을 endpoint에 추가
+        """
+        url_list = self.get_review_endpoints()
+        reviews = []
+
+        while not url_list:
+        
+            curr_url = url_list.pop()
+            response = requests.get(url=curr_url, headers=headers, params=params)
+            data = json.loads(response.text, strict=False)
+
+            if 'results' in data:
+                review_info = {
+                    'id' : data['results']['id'],
+                    'entity_id': data['results']['entity_id'],
+                    'entity_type': data['results']['entity_type'],
+                    'timestamp_created': data['results']['timestamp_created'],
+                    'source': data['results']['source'],
+                    'rating': data['results']['rating'],
+                    'comment': data['results']['comment'],
+                    'screen_name': data['results']['screen_name'],
+                    'uuid_user_id': data['results']['uuid_user_id']
+                }
+
+                reviews.append(review_info)
+
+
+            while True:
+                if 'next' in data:
+                    next_url = data['next']
+                    headers = {}
+                    params = {}
+
+                    url_list.append(next_url)
+                    response = requests.get(url=next_url, headers=headers, params=params)
+
+                    time.sleep(1)
+
+                    data = json.loads(response.text, strict=False)
+                else:
+                    break
+
+        reviews_df = pd.DataFrame(reviews)
+        
+        file_path = os.path.join(SAVE_DIR, 'oreilly_book_reviews.csv')
+        reviews_df.to_csv(file_path)
