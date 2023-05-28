@@ -15,7 +15,7 @@ class FileUtils:
             config = yaml.safe_load(f.read())
         logging.config.dictConfig(config)
         FileUtils.logger = logging.getLogger("logger")
-
+        return FileUtils.logger
 
     @staticmethod
     def read_file(file_path: str) -> str:

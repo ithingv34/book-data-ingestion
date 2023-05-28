@@ -1,5 +1,4 @@
 import os
-from abc import abstractmethod, ABC
 
 import requests
 
@@ -11,7 +10,7 @@ PROJECT_PATH = os.path.dirname(CURRENT_PATH)
 CONFIG_FILE_PATH = os.path.join(PROJECT_PATH, 'config.yml')
 TEMP_FOLDER_PATH = os.path.join(PROJECT_PATH, "temp")
 
-class BaseScraper(ABC):
+class BaseScraper:
     def __init__(self):
         self.logger = FileUtils.setup_logger(CONFIG_FILE_PATH)
 

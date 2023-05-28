@@ -1,17 +1,23 @@
 import os
 import time
 import json
+import pandas as pd
 
 from utils.http_message import HTTPMessage
 from core.base_scraper import BaseScraper
+
+CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
+PROJECT_PATH = os.path.dirname(CURRENT_PATH)
+SAVE_DIR = os.path.join(PROJECT_PATH, 'data')
 
 class OreillyScraper(BaseScraper):
     def __init__(self):
         super().__init__()
 
-    def save_book_data(self):
+    def get_book_data(self):
         
-        page = 1
+        book_data = []
+        curr_page = 1
 
         while True:
         
@@ -25,7 +31,7 @@ class OreillyScraper(BaseScraper):
                 "user_language": "en",
                 "enableLiveCoursesInCoursesSearch": False,
                 "report": True,
-                "page": page
+                "page": curr_page
             }
 
             headers = {
@@ -45,21 +51,49 @@ class OreillyScraper(BaseScraper):
             }
 
             message = HTTPMessage(url=url, headers=headers, params=params)
-            code = f'book_{page}'
+            code = f'book_{curr_page}'
             content = self.check_and_load_data(code=code, message=message)
             
-            product_list = json.loads(content)['data']['products']
+            book_list = json.loads(content)['data']['products']
             
-            if len(product_list) == 0:
+            if len(book_list) == 0:
                 self.logger.info("Book data no longer exists.")
                 break
 
-            time.sleep(3)
-            page += 1
+            book_data.extend(book_list)
+            curr_page += 1
+            
+            # time.sleep(3)
+            
+        return book_data
 
+    def scape_book_data(self) -> None:
+        
+        books = self.get_book_data()
+        book_info_list = []
 
-    def parse_book_data(self):
-        pass
+        for book in books:
+            book_info = {
+                'id': book['product_id'],
+                'title': book['title'],
+                'url': book['url'],
+                'author': book['authors'],
+                'categories': book['categories'],
+                'cover_image': book['cover_image'],
+                'description': book['description'],
+                'publication_date': book['custom_attributes']['publication_date'],
+                'page_count': book['custom_attributes']['page_count'],
+                'publisher': book['custom_attributes']['publishers'],
+                'topics': [topic['name'] for topic in book['custom_attributes']['topic__topic_hierarchy']],
+                'average_rating': book['custom_attributes']['average_rating']
+            }
+
+            book_info_list.append(book_info)
+
+        file_path = os.path.join(SAVE_DIR, 'oreilly_book.csv')
+        book_df = pd.DataFrame(book_info_list)
+        book_df.to_csv(file_path, index=False)
+        self.logger.info(f"Save book data to: {file_path}")
 
     def save_review_data(self):
         pass
